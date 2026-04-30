@@ -17,7 +17,7 @@ function getDB() {
     $host = 'localhost';
     $dbname = 'FCSM';
     $user = 'root';
-    $pass = '';
+    $pass = 'qdDFtJiC#X8Nr9b8';
 
     try {
         $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
