@@ -3,7 +3,6 @@ require_once 'db.php';
 
 $pdo = getDB();
 $method = $_SERVER['REQUEST_METHOD'];
-// Pour l'instant, l'étudiant connecté est statique (id=1 = Lucas Martin)
 $id_etudiant = requireLogin();
 
 if ($method === 'GET') {

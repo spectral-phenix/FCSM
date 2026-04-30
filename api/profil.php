@@ -30,7 +30,6 @@ if ($method === 'GET') {
 
     if ($action === 'lieux_trajet') {
         // Lieux pour créer un trajet : tout sauf les domiciles des autres étudiants
-        // On garde : lieux non-domicile + le domicile principal de l'utilisateur connecté
         $stmt = $pdo->prepare("
             SELECT id, nom, ville, type FROM lieu
             WHERE type != 'domicile'
@@ -66,7 +65,6 @@ if ($method === 'POST') {
     }
 
     if ($action === 'update_mdp') {
-        // Simple pour l'instant, sans hash (à améliorer avec password_hash en v2)
         $stmt = $pdo->prepare("UPDATE etudiant SET password=? WHERE id=?");
         $stmt->execute([$body['password'], $id_etudiant]);
         jsonResponse(['success' => true]);

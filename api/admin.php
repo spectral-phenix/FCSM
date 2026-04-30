@@ -1,5 +1,5 @@
 <?php
-// API réservée à l'admin — vérifie la session admin
+// API réservée à l'admin
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 header('Content-Type: application/json');
@@ -37,14 +37,14 @@ $table = $_GET['table'] ?? $body['table'] ?? null;
 if (!$table) { http_response_code(400); echo json_encode(['error' => 'Table manquante']); exit(); }
 validTable($table, $allowed_tables);
 
-// ── GET : liste tous les enregistrements ──
+//  GET : liste tous les enregistrements 
 if ($method === 'GET') {
     $stmt = $pdo->query("SELECT * FROM `$table` ORDER BY id");
     echo json_encode($stmt->fetchAll(), JSON_UNESCAPED_UNICODE);
     exit();
 }
 
-// ── POST : insertion ──
+//  POST : insertion 
 if ($method === 'POST') {
     $data = $body;
     unset($data['table']);
@@ -60,7 +60,7 @@ if ($method === 'POST') {
     exit();
 }
 
-// ── PUT : mise à jour ──
+//  PUT : mise à jour 
 if ($method === 'PUT') {
     $data = $body;
     unset($data['table']);
@@ -76,7 +76,7 @@ if ($method === 'PUT') {
     exit();
 }
 
-// ── DELETE ──
+//  DELETE 
 if ($method === 'DELETE') {
     $id = $_GET['id'] ?? null;
     if (!$id) { http_response_code(400); echo json_encode(['error' => 'ID manquant']); exit(); }

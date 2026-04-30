@@ -6,9 +6,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id_etudiant = requireLogin();
 
 if ($method === 'GET') {
-    $type = $_GET['type'] ?? 'all'; // 'mes', 'disponibles', 'membres'
+    $type = $_GET['type'] ?? 'all'; 
 
-    // ── Liste des membres d'un trajet (créateur uniquement) ──
+    // Liste des membres d'un trajet 
     if ($type === 'membres') {
         $id_trajet = (int)($_GET['id_trajet'] ?? 0);
         if (!$id_trajet) jsonResponse(['error' => 'ID trajet manquant'], 400);
@@ -135,7 +135,7 @@ if ($method === 'POST') {
         jsonResponse(['success' => true]);
     }
 
-    // ── Expulser un membre (conducteur seulement) ──
+    //  Expulser un membre (conducteur seulement) 
     if ($action === 'kick') {
         $id_trajet   = (int)($body['id_trajet']   ?? 0);
         $id_cible    = (int)($body['id_etudiant'] ?? 0);

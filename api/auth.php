@@ -35,7 +35,7 @@ if ($method === 'POST') {
         $email = trim($body['email'] ?? '');
         $password = $body['password'] ?? '';
 
-        // ── Compte admin spécial ──
+        //  Compte admin spécial 
         if ($email === 'admin' && $password === 'root') {
             $_SESSION['is_admin'] = true;
             unset($_SESSION['id_etudiant']);
@@ -46,7 +46,6 @@ if ($method === 'POST') {
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
-        // V1 volontairement simple : mot de passe en clair, demandé pour les tests.
         if (!$user || $user['password'] !== $password) {
             jsonResponse(['error' => 'Email ou mot de passe incorrect'], 401);
         }
