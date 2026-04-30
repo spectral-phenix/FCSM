@@ -1,0 +1,212 @@
+================================================================================
+  GUIDE D'UTILISATION — Application de Covoiturage FCSM / BUT R&T Montbéliard
+================================================================================
+
+Ce document décrit le fonctionnement de l'application de covoiturage destinée
+aux étudiants du BUT R&T de Montbéliard et aux membres du fan-club FCSM.
+
+--------------------------------------------------------------------------------
+  PRÉSENTATION GÉNÉRALE
+--------------------------------------------------------------------------------
+
+L'application permet d'organiser des trajets en covoiturage entre étudiants
+partageant les mêmes horaires de cours ou de loisirs (matchs FCSM, courses,
+etc.). Elle recense les véhicules disponibles, propose des matchs automatiques
+basés sur les horaires, et permet de créer ou rejoindre des trajets partagés.
+
+Accès : saisir l'adresse du site dans votre navigateur. Aucune installation
+n'est nécessaire, l'application fonctionne directement dans le navigateur.
+
+--------------------------------------------------------------------------------
+  1. CONNEXION
+--------------------------------------------------------------------------------
+
+Sur la page d'accueil, saisissez votre adresse email universitaire et votre
+mot de passe, puis cliquez sur "Se connecter".
+
+  Exemple de compte de test : aymen.benamor@ufc / butrt
+
+Si vos identifiants sont incorrects, un message d'erreur s'affiche en bas
+de l'écran. Contactez un responsable si vous ne connaissez pas vos accès.
+
+Pour vous déconnecter, cliquez sur le bouton "Déconnexion" en bas de la
+barre de navigation à gauche.
+
+--------------------------------------------------------------------------------
+  2. ACCUEIL — Étudiants compatibles et mes trajets
+--------------------------------------------------------------------------------
+
+La page d'accueil est divisée en deux sections :
+
+  ── Étudiants compatibles ──────────────────────────────────────────────────
+
+  Cette section affiche automatiquement les étudiants qui partagent un créneau
+  horaire proche du vôtre (même jour, même heure de début à ±15 minutes près).
+  Pour chaque étudiant compatible, vous voyez :
+
+    - Son prénom, nom et groupe (GB1, GB2, LK1, LK2)
+    - Le créneau horaire partagé (jour + heure)
+    - La distance approximative entre vos domiciles (en km)
+
+  Au maximum 4 correspondances sont affichées. Si d'autres étudiants
+  correspondent, un indicateur vous en informe en bas de la liste.
+
+  Cette liste se base sur les horaires enregistrés dans la base de données.
+  Si elle est vide, c'est que vos horaires ne sont pas encore renseignés :
+  rapprochez-vous d'un administrateur.
+
+  ── Mes trajets ────────────────────────────────────────────────────────────
+
+  Cette section liste tous les trajets auxquels vous participez, en tant que
+  conducteur ou passager. Pour chaque trajet, vous voyez :
+
+    - L'itinéraire (lieu de départ → lieu d'arrivée)
+    - La date et l'heure de départ
+    - Le nombre de places disponibles
+    - Votre rôle (Conducteur / Passager)
+
+  Actions disponibles :
+    - Si vous êtes conducteur : bouton "Supprimer" pour annuler le trajet
+      (tous les membres sont automatiquement retirés).
+    - Si vous êtes passager : bouton "Quitter" pour vous désinscrire du trajet.
+
+--------------------------------------------------------------------------------
+  3. CRÉER UNE ANNONCE
+--------------------------------------------------------------------------------
+
+Cette page vous permet de proposer un trajet aux autres étudiants.
+
+Remplissez le formulaire :
+
+  1. Lieu de départ   — choisissez parmi les lieux disponibles (université,
+                        stade FCSM, commerces, votre propre domicile).
+                        Note : seul votre domicile apparaît dans la liste,
+                        pas ceux des autres étudiants.
+
+  2. Lieu d'arrivée   — même principe.
+
+  3. Date du trajet   — sélectionnez la date prévue (aujourd'hui ou plus tard).
+
+  4. Type de trajet   — trois options :
+       - Aller simple  : trajet dans un seul sens.
+       - Retour simple : trajet de retour uniquement.
+       - Aller-retour  : si vous sélectionnez cette option, une section
+                         supplémentaire apparaît pour renseigner les horaires
+                         du retour (heure de départ et heure d'arrivée estimée).
+
+  5. Heure de départ          — heure à laquelle le trajet commence.
+  6. Heure d'arrivée estimée  — facultatif, pour informer les passagers.
+  7. Véhicule                 — sélectionnez un de vos véhicules enregistrés.
+                                Si aucun véhicule n'est enregistré, rendez-vous
+                                d'abord dans la section "Véhicule".
+  8. Participation demandée   — facultatif (ex : "1€/trajet", "libre"...).
+  9. Remarques                — informations complémentaires éventuelles.
+
+Cliquez sur "Publier le trajet". Vous êtes automatiquement inscrit comme
+conducteur de ce trajet, qui devient alors visible pour tous les autres
+étudiants dans la page "Rejoindre un trajet".
+
+--------------------------------------------------------------------------------
+  4. REJOINDRE UN TRAJET
+--------------------------------------------------------------------------------
+
+Cette page affiche tous les trajets disponibles créés par d'autres étudiants
+auxquels vous n'êtes pas encore inscrit.
+
+Pour chaque trajet, vous voyez :
+  - L'itinéraire et les villes concernées
+  - La date et l'heure de départ (et d'arrivée estimée si renseignée)
+  - Le véhicule utilisé
+  - Le nom du conducteur (créateur du trajet)
+  - Le nombre de places encore disponibles
+  - Le type de trajet (Aller / Retour / Aller-retour)
+
+  ── Badge vert  → places disponibles, vous pouvez rejoindre
+  ── Badge rouge → trajet complet, inscription impossible
+
+Cliquez sur "Rejoindre" pour vous inscrire comme passager. Le trajet
+apparaîtra ensuite dans votre section "Mes trajets" sur la page d'accueil.
+
+Lorsqu'un trajet atteint sa capacité maximale (selon le nombre de places
+du véhicule), il passe automatiquement en statut "Complet".
+
+--------------------------------------------------------------------------------
+  5. VÉHICULE
+--------------------------------------------------------------------------------
+
+Cette page vous permet de gérer les véhicules associés à votre compte.
+
+  ── Ajouter un véhicule ────────────────────────────────────────────────────
+
+  Remplissez le formulaire à droite :
+    - Marque / Modèle       (ex : Peugeot 208)
+    - Immatriculation       (ex : AB-123-CD)
+    - Nombre de places      (conducteur inclus, entre 1 et 9)
+
+  Cliquez sur "Ajouter". Le véhicule apparaît immédiatement dans la liste
+  à gauche et peut être sélectionné lors de la création d'un trajet.
+
+  ── Modifier un véhicule ───────────────────────────────────────────────────
+
+  Cliquez sur "Modifier" à côté du véhicule concerné. Le formulaire se
+  pré-remplit avec les informations existantes. Effectuez vos changements
+  et cliquez sur "Enregistrer".
+
+  ── Supprimer un véhicule ──────────────────────────────────────────────────
+
+  Cliquez sur "Supprimer". Une confirmation est demandée.
+  Attention : la suppression est impossible si le véhicule est utilisé dans
+  un trajet futur. Supprimez ou transférez le trajet en question d'abord.
+
+--------------------------------------------------------------------------------
+  6. MON PROFIL
+--------------------------------------------------------------------------------
+
+Cette page regroupe vos informations personnelles, divisées en trois sections.
+
+  ── Informations personnelles ───────────────────────────────────────────────
+
+  Vous pouvez modifier votre prénom, nom, adresse email et groupe.
+  Cliquez sur "Enregistrer" pour valider les changements.
+
+  ── Domicile principal ──────────────────────────────────────────────────────
+
+  Renseignez ou mettez à jour votre adresse de domicile (adresse, ville,
+  code postal). Cette information est utilisée pour calculer la distance
+  avec les autres étudiants et améliorer les correspondances affichées
+  sur la page d'accueil.
+
+  ── Changer le mot de passe ─────────────────────────────────────────────────
+
+  Saisissez votre nouveau mot de passe deux fois pour confirmer, puis cliquez
+  sur "Changer le mot de passe".
+
+  ── Mes horaires (lecture seule) ────────────────────────────────────────────
+
+  Vos horaires universitaires et de loisirs sont affichés ici à titre
+  informatif. Ils ne sont pas modifiables depuis l'interface : contactez
+  un administrateur pour les mettre à jour.
+
+--------------------------------------------------------------------------------
+  REMARQUES GÉNÉRALES
+--------------------------------------------------------------------------------
+
+  - L'application ne gère pas les notifications : pensez à vérifier
+    régulièrement si de nouveaux trajets sont disponibles.
+
+  - Un trajet est visible par tous les étudiants connectés. Ne publiez
+    que des trajets que vous comptez réellement effectuer.
+
+  - En cas de problème technique (page blanche, erreur de connexion à la
+    base de données), contactez l'administrateur du site.
+
+--------------------------------------------------------------------------------
+  CONTACT / SUPPORT
+--------------------------------------------------------------------------------
+
+  Pour toute question ou signalement de bug, contactez l'administrateur
+  de l'application via l'adresse email de votre département.
+
+================================================================================
+  FIN DU GUIDE
+================================================================================

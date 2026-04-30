@@ -1,0 +1,449 @@
+================================================================================
+  GUIDE DE DÉVELOPPEMENT — Application de Covoiturage FCSM / BUT R&T
+  À destination des développeurs reprenant le projet
+================================================================================
+
+--------------------------------------------------------------------------------
+  1. PRÉSENTATION TECHNIQUE
+--------------------------------------------------------------------------------
+
+L'application repose sur une architecture client-serveur classique :
+
+  - Front-end  : HTML / CSS / JavaScript pur (sans framework)
+  - Back-end   : PHP 8+ (API REST, pas de rendu côté serveur)
+  - Base de données : MySQL (base nommée "FCSM")
+  - Serveur    : Apache avec PHP (type WAMP / XAMPP / hébergement mutualisé)
+
+Le front est une SPA (Single Page Application) : une seule page HTML
+(index.html) est chargée, et toutes les transitions entre sections sont
+gérées en JavaScript par affichage/masquage de blocs. Les données sont
+récupérées de manière asynchrone via l'API Fetch (fetch()).
+
+Les fichiers PHP ne génèrent jamais de HTML — ils répondent exclusivement
+en JSON. Le JS consomme ces réponses et met à jour le DOM.
+
+--------------------------------------------------------------------------------
+  2. STRUCTURE DES FICHIERS
+--------------------------------------------------------------------------------
+
+  /                           ← Racine du projet (dossier servi par Apache)
+  │
+  ├── index.html              ← Point d'entrée unique de l'application
+  ├── admin_panel.html        ← Interface d'administration (accès restreint)
+  │
+  ├── css/
+  │   └── style.css           ← Feuille de style globale (variables CSS, layout,
+  │                             composants : cards, badges, boutons, formulaires)
+  │
+  ├── js/
+  │   └── app.js              ← Toute la logique front-end (navigation, appels API,
+  │                             rendu DOM, gestion des formulaires)
+  │
+  └── api/                    ← Tous les fichiers PHP (endpoints de l'API)
+      ├── db.php              ← Connexion PDO + fonctions utilitaires globales
+      ├── auth.php            ← Login / logout / vérification de session
+      ├── matches.php         ← Calcul des correspondances d'horaires
+      ├── trajets.php         ← CRUD trajets + rejoindre / quitter / kick membre
+      ├── vehicules.php       ← CRUD véhicules
+      ├── profil.php          ← Profil, domicile, horaires, liste des lieux
+      └── admin.php           ← CRUD générique sur toutes les tables (admin only)
+
+  Fichiers SQL (à conserver hors du serveur web ou dans un dossier protégé) :
+      init.sql                ← Création de la base et des tables
+      insert.sql              ← Données de test (7 étudiants, lieux, horaires...)
+
+--------------------------------------------------------------------------------
+  3. BASE DE DONNÉES
+--------------------------------------------------------------------------------
+
+  Nom de la base : FCSM
+  Encodage       : utf8mb4 / utf8mb4_unicode_ci
+
+  ── Tables ─────────────────────────────────────────────────────────────────
+
+  etudiant
+    id, nom, prenom, email (UNIQUE), password (clair en v1), groupe
+
+  lieu
+    id, nom, adresse, ville, type (universite / loisir / courses / domicile),
+    code_postal, latitude, longitude
+
+  domicile
+    id, type (principale / secondaire), id_etudiant (FK), id_lieu (FK)
+
+  vehicule
+    id, immatriculation (UNIQUE), nb_places, id_etudiant (FK),
+    marque, modele, date_ct, date_assurance
+
+  horaire
+    id, jour_semaine (ENUM lundi→samedi), heure_debut, heure_fin,
+    id_etudiant (FK), id_lieu (FK), type (travail / loisir / courses)
+
+  trajet
+    id, date_trajet, heure_depart, heure_arrivee_estimee,
+    heure_retour_depart, heure_retour_arrivee,
+    type (ENUM aller / retour / aller-retour), estPlein (bool),
+    id_createur (FK etudiant), id_lieu_depart (FK lieu),
+    id_lieu_arrivee (FK lieu), id_vehicule (FK, nullable),
+    participation, remarques
+
+  membre_equipage
+    id, id_trajet (FK), id_etudiant (FK), role (ENUM conducteur / passager),
+    valide_aller, valide_retour
+    UNIQUE KEY sur (id_trajet, id_etudiant)
+
+  ── Relations principales ───────────────────────────────────────────────────
+
+    etudiant  1──N  domicile   N──1  lieu
+    etudiant  1──N  horaire    N──1  lieu
+    etudiant  1──N  vehicule
+    etudiant  1──N  trajet (créateur)
+    trajet    1──N  membre_equipage  N──1  etudiant
+    trajet    N──1  lieu (départ)
+    trajet    N──1  lieu (arrivée)
+    trajet    N──1  vehicule
+
+  ── Note sur la colonne heure_retour ───────────────────────────────────────
+
+    Les colonnes heure_retour_depart et heure_retour_arrivee ont été ajoutées
+    après la création initiale. Si elles n'existent pas dans votre base,
+    exécutez la migration suivante :
+
+      ALTER TABLE trajet
+        ADD COLUMN heure_retour_depart  TIME NULL AFTER heure_arrivee_estimee,
+        ADD COLUMN heure_retour_arrivee TIME NULL AFTER heure_retour_depart;
+
+--------------------------------------------------------------------------------
+  4. FICHIERS PHP — DÉTAIL
+--------------------------------------------------------------------------------
+
+  ── api/db.php ────────────────────────────────────────────────────────────
+
+  Inclus en premier par tous les autres fichiers PHP.
+  Responsabilités :
+    - Démarre la session PHP (session_start)
+    - Définit les headers CORS et Content-Type: application/json
+    - Expose la fonction getDB() → retourne une instance PDO configurée
+    - Expose les helpers :
+        jsonResponse($data, $code)  → encode en JSON et exit()
+        getBody()                   → décode le corps JSON de la requête
+        requireLogin()              → vérifie la session, retourne id_etudiant
+                                      ou répond 401 si non connecté
+
+  Pour changer les identifiants de connexion à la base :
+    → Modifier les variables $host, $dbname, $user, $pass dans getDB()
+
+  ── api/auth.php ──────────────────────────────────────────────────────────
+
+  Gère l'authentification.
+
+    GET  ?action=me       → retourne l'utilisateur connecté ou {connected:false}
+                            Retourne aussi is_admin:true si session admin active
+    POST action=login     → connecte un étudiant (email + password en clair)
+                            Cas spécial : email="admin" + password="root"
+                            → ouvre une session admin ($_SESSION['is_admin']=true)
+    POST action=logout    → détruit la session
+
+  !! Le mot de passe est stocké et comparé en clair (v1 simplifiée).
+     Pour passer en production, utiliser password_hash() / password_verify()
+     et hacher les mots de passe existants en BDD.
+
+  ── api/matches.php ───────────────────────────────────────────────────────
+
+  GET uniquement. Retourne les étudiants compatibles avec l'utilisateur
+  connecté selon ses horaires.
+
+  Algorithme :
+    1. Récupère tous les horaires de l'utilisateur connecté
+    2. Pour chaque horaire, cherche les autres étudiants ayant un créneau
+       le même jour, avec une heure de début à ±15 minutes
+       (via ABS(TIME_TO_SEC(h.heure_debut) - TIME_TO_SEC(?)) <= 900)
+    3. Récupère les coordonnées GPS du domicile principal de l'utilisateur
+    4. Calcule la distance Haversine (en km) pour chaque étudiant compatible
+    5. Déduplique par id_etudiant (un étudiant peut matcher sur plusieurs
+       créneaux, on ne le retourne qu'une fois)
+    6. Trie par distance croissante
+
+  Le front-end limite l'affichage à 4 résultats maximum (.slice(0, 4)).
+
+  ── api/trajets.php ───────────────────────────────────────────────────────
+
+    GET  ?type=mes          → trajets de l'utilisateur (conducteur ou passager)
+    GET  ?type=disponibles  → trajets non pleins sans l'utilisateur
+    GET  ?type=membres      → membres d'un trajet (réservé au créateur)
+         &id_trajet=X
+
+    POST action=create      → crée un trajet + inscrit le créateur comme conducteur
+    POST action=rejoindre   → inscrit l'utilisateur comme passager
+                              vérifie la capacité et met estPlein à jour
+    POST action=quitter     → retire l'utilisateur du trajet
+    POST action=kick        → retire un passager spécifique (créateur uniquement)
+                              impossible de se kick soi-même
+
+    DELETE ?id=X            → supprime le trajet (créateur uniquement)
+
+  ── api/vehicules.php ─────────────────────────────────────────────────────
+
+    GET                     → liste des véhicules de l'utilisateur
+    POST                    → ajouter un véhicule
+    PUT                     → modifier un véhicule (vérification id_etudiant)
+    DELETE ?id=X            → supprimer un véhicule (vérification id_etudiant)
+
+  ── api/profil.php ────────────────────────────────────────────────────────
+
+    GET  ?action=profil     → infos de l'utilisateur + domicile principal
+    GET  ?action=lieux      → tous les lieux (usage admin / debug)
+    GET  ?action=lieux_trajet → lieux filtrés pour le formulaire "créer trajet" :
+                              - tous les lieux non-domicile
+                              - + le domicile de l'utilisateur connecté uniquement
+    GET  ?action=horaires   → horaires de l'utilisateur connecté
+
+    POST action=update_profil  → met à jour nom / prénom / email / groupe
+    POST action=update_mdp     → met à jour le mot de passe
+    POST action=update_domicile → crée ou met à jour le domicile principal
+                                  (crée un lieu si aucun domicile n'existe)
+
+  ── api/admin.php ─────────────────────────────────────────────────────────
+
+  Endpoint CRUD générique protégé par session admin.
+  Vérifie $_SESSION['is_admin'] === true, sinon répond 403.
+
+  Tables autorisées (whitelist) :
+    etudiant, vehicule, lieu, trajet, horaire, membre_equipage, domicile
+
+    GET    ?table=X         → SELECT * FROM table ORDER BY id
+    POST   body:{table,col1,col2,...} → INSERT
+    PUT    body:{table,id,col1,...}   → UPDATE WHERE id
+    DELETE ?table=X&id=Y   → DELETE WHERE id
+
+  Attention : pas de validation métier dans cet endpoint (pas de vérification
+  de FK, de format de date, etc.). À utiliser avec précaution.
+
+--------------------------------------------------------------------------------
+  5. FICHIER JS — app.js
+--------------------------------------------------------------------------------
+
+  ── Constante API ─────────────────────────────────────────────────────────
+
+    const API = 'api';
+
+  Tous les appels fetch sont construits comme : `${API}/auth.php`, etc.
+  Si l'arborescence change, modifier uniquement cette constante.
+
+  ── Fonctions utilitaires ─────────────────────────────────────────────────
+
+    fetchJSON(url, options)    → wrapper fetch qui retourne le JSON parsé
+    toast(msg, isError)        → affiche une notification en bas à droite
+    joliHeure(str)             → formate "08:00:00" → "8h00"
+    joliJour(str)              → capitalise le premier caractère du jour
+    initiales(nom, prenom)     → retourne "JD" pour Jean Dupont
+    placesRestantes(membres, places) → calcule le nb de places libres
+
+  ── Flux d'authentification ───────────────────────────────────────────────
+
+    1. checkAuth() est appelé au chargement de la page
+    2. GET api/auth.php?action=me
+       → connected:false  → affiche l'écran de login
+       → is_admin:true    → redirige vers admin_panel.html
+       → connected:true   → affiche l'app, charge la page Accueil
+
+    Le formulaire de login soumet en POST, reçoit is_admin dans la réponse
+    et applique le même aiguillage.
+
+  ── Navigation SPA ────────────────────────────────────────────────────────
+
+    Chaque élément .nav-item porte un attribut data-page="xxx".
+    Au clic, la fonction navigate(page) :
+      1. Retire la classe .active de tous les .page
+      2. Ajoute .active sur #page-{xxx}
+      3. Appelle la fonction de chargement correspondante :
+           accueil   → loadAccueil()
+           creer     → loadCreerForm()
+           rejoindre → loadRejoindre()
+           vehicule  → loadVehicules()
+           profil    → loadProfil()
+
+  ── Chargement des données ────────────────────────────────────────────────
+
+    Chaque page a sa fonction load* qui :
+      - Appelle fetch sur le endpoint concerné
+      - Injecte le HTML généré dans le div cible via .innerHTML
+      - Gère les états vides (empty-state) et les erreurs
+
+  ── Formulaires ───────────────────────────────────────────────────────────
+
+    Les formulaires utilisent FormData ou une construction manuelle de l'objet
+    body à envoyer en JSON. Ils n'utilisent pas l'action/method HTML natif —
+    le submit est intercepté par addEventListener('submit', e => { e.preventDefault(); ... }).
+
+  ── Toggle aller-retour ───────────────────────────────────────────────────
+
+    Le select #f-type écoute l'événement 'change'.
+    Si la valeur est 'aller-retour', le bloc #retour-fields devient visible.
+    Les champs heure_retour_depart et heure_retour_arrivee sont inclus
+    dans le body envoyé à trajets.php, qu'ils soient remplis ou non.
+
+  ── Gestion des membres d'un trajet ──────────────────────────────────────
+
+    toggleMembres(id_trajet) :
+      → Affiche/masque un panneau sous la card du trajet
+      → Appelle GET api/trajets.php?type=membres&id_trajet=X
+      → Affiche la liste avec un bouton "Retirer" pour chaque passager
+
+    kickMembre(id_trajet, id_etudiant, nom) :
+      → POST api/trajets.php avec action=kick
+      → Recharge le panneau membres après succès
+
+--------------------------------------------------------------------------------
+  6. FICHIER admin_panel.html
+--------------------------------------------------------------------------------
+
+  Page autonome, sans dépendance à app.js.
+  Contient son propre script JavaScript inline.
+
+  Au chargement :
+    → Appelle GET api/auth.php?action=me
+    → Si pas admin → redirige vers index.html (protection côté client)
+    → La vraie protection est dans api/admin.php (vérification session côté serveur)
+
+  Structure :
+    - Sidebar sombre avec navigation entre les tables
+    - Section "Tableau de bord" : 4 stats chargées en parallèle (Promise.all)
+    - Une section par table avec un tableau HTML généré dynamiquement
+    - Modal unique réutilisé pour ajout et modification
+
+  La variable FIELD_DEFS définit les champs éditables par table
+  (label, type HTML, options pour les selects, champ required ou non).
+  Pour ajouter une colonne éditable, l'ajouter dans FIELD_DEFS.
+
+  PANEL_TO_TABLE mappe le nom du panel (ex: 'etudiants') vers le nom
+  SQL exact (ex: 'etudiant'). Nécessaire car les noms diffèrent.
+
+  PANEL_COLS définit les colonnes affichées dans chaque tableau.
+  Modifier cette liste pour afficher plus ou moins de colonnes.
+
+--------------------------------------------------------------------------------
+  7. CSS — style.css
+--------------------------------------------------------------------------------
+
+  Les styles utilisent des variables CSS définies dans :root pour faciliter
+  la personnalisation du thème. Variables clés :
+
+    --bg          : couleur de fond global (#f5f4f1, beige clair)
+    --surface     : fond des cards (#ffffff)
+    --surface2    : fond secondaire / hover (#f0efe9)
+    --border      : couleur des bordures
+    --text        : texte principal
+    --text-2      : texte secondaire
+    --text-3      : texte désactivé / placeholder
+    --accent      : couleur d'accentuation (noir #1a1917)
+    --green, --blue, --amber, --red : couleurs des badges
+
+  Composants disponibles (classes CSS) :
+    .card           → bloc blanc avec bordure
+    .card-row       → ligne flex espace-entre dans une card
+    .badge          → étiquette colorée (badge-green, badge-blue, badge-gray...)
+    .btn            → bouton générique
+    .btn-primary    → bouton action principale (fond sombre)
+    .btn-danger     → bouton destructif
+    .btn-full       → bouton pleine largeur
+    .form-group     → groupe label + input
+    .form-row       → grille 2 colonnes pour les formulaires
+    .form-row-3     → grille 3 colonnes
+    .mono           → texte en police monospace (immatriculation, codes...)
+    .empty-state    → message centré quand une liste est vide
+    .loading        → message de chargement
+    .avatar         → cercle avec initiales
+    .places-bar     → barre de progression des places
+
+--------------------------------------------------------------------------------
+  8. AJOUTER UNE NOUVELLE FONCTIONNALITÉ — EXEMPLE TYPE
+--------------------------------------------------------------------------------
+
+  Exemple : ajouter un système de notation des conducteurs.
+
+  1. BDD : créer la table et/ou ajouter les colonnes nécessaires
+       ALTER TABLE membre_equipage ADD COLUMN note TINYINT NULL;
+
+  2. PHP : créer ou modifier un endpoint
+       api/notes.php → GET (lire les notes) / POST (soumettre une note)
+
+  3. HTML : ajouter une entrée dans la navigation dans index.html
+       <div class="nav-item" data-page="notes">⭐ Notes</div>
+       <div class="page" id="page-notes">...</div>
+
+  4. JS : dans app.js, ajouter le case dans navigate() et écrire loadNotes()
+
+  5. CSS : si besoin, ajouter les nouveaux composants dans style.css
+       en réutilisant les variables existantes.
+
+--------------------------------------------------------------------------------
+  9. POINTS D'ATTENTION POUR LES ÉVOLUTIONS FUTURES
+--------------------------------------------------------------------------------
+
+  Sécurité
+    - Les mots de passe sont stockés en clair. Passer à password_hash()
+      (PASSWORD_DEFAULT) côté PHP et mettre à jour les données existantes.
+    - Ajouter une validation des entrées côté serveur (longueur, format email,
+      valeurs d'ENUM) dans chaque endpoint PHP.
+    - Restreindre CORS (Access-Control-Allow-Origin: *) à l'origine réelle
+      en production.
+    - Protéger le dossier /api contre la navigation directe via .htaccess.
+
+  Sessions
+    - L'authentification repose sur les sessions PHP (cookie PHPSESSID).
+    - La durée de session dépend de la config PHP du serveur.
+    - Pour une meilleure gestion, configurer session.gc_maxlifetime dans php.ini
+      ou via ini_set() dans db.php.
+
+  Horaires
+    - Les horaires ne sont pas gérables depuis l'interface utilisateur (lecture
+      seule dans le profil). Les ajouter/modifier nécessite un accès admin
+      ou une intervention directe en BDD.
+    - Une future version pourrait ajouter un formulaire CRUD dans la page Profil.
+
+  Coordonnées GPS
+    - Les coordonnées latitude/longitude des domiciles sont saisies manuellement.
+    - Une amélioration possible : intégrer l'API Nominatim (OpenStreetMap) pour
+      géocoder automatiquement une adresse saisie en texte libre.
+
+  Aller-retour
+    - Les horaires du retour (heure_retour_depart, heure_retour_arrivee) sont
+      sauvegardés mais ne sont pas encore affichés dans la liste des trajets
+      disponibles. À compléter dans le rendu HTML de rejoindre.php.
+
+  Admin
+    - Le compte admin est en dur dans auth.php (login "admin", mdp "root").
+      Pour changer le mot de passe, modifier directement la ligne concernée.
+    - Il n'y a pas de log des actions admin. En production, ajouter une table
+      de logs pour tracer les modifications.
+
+--------------------------------------------------------------------------------
+  10. LANCER LE PROJET EN LOCAL
+--------------------------------------------------------------------------------
+
+  Prérequis : WAMP / XAMPP / MAMP ou équivalent
+
+  1. Copier le dossier du projet dans le répertoire servi par Apache
+     (ex : C:/wamp64/www/covoiturage/)
+
+  2. Importer la base de données dans phpMyAdmin :
+       - Exécuter init.sql  (création de la base et des tables)
+       - Exécuter insert.sql (données de test)
+
+  3. Vérifier / adapter les identifiants de connexion dans api/db.php :
+       $host   = 'localhost';
+       $dbname = 'FCSM';
+       $user   = 'root';
+       $pass   = '';
+
+  4. Accéder à l'application dans le navigateur :
+       http://localhost/covoiturage/
+
+  5. Comptes de test disponibles :
+       aymen.benamor@ufc  /  butrt   (étudiant)
+       admin              /  root    (administrateur)
+
+================================================================================
+  FIN DU GUIDE DE DÉVELOPPEMENT
+================================================================================
